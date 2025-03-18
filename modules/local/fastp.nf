@@ -3,7 +3,7 @@ process FASTP {
     publishDir "${params.outdir}/trimming", mode: params.publish_dir_mode
     cpus 4
     memory '8 GB'
-    time '4h'
+    time '2h'
 
     input:
     tuple val(sample_id), path(reads)

@@ -3,7 +3,7 @@ process REPAIR {
     publishDir "${params.outdir}/repair", mode: params.publish_dir_mode
     cpus 4
     memory '32 GB'
-    time '24h'
+    time '2h'
 
     input:
     tuple val(sample_id), path(trimmed_reads)

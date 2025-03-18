@@ -16,8 +16,21 @@ This pipeline processes paired-end RNA-seq data through multiple steps to genera
 ## Requirements
 
 - Nextflow (21.10.0+)
-- Singularity or Docker
+- Conda or Mamba for dependency management
 - Input file listing samples in tab-separated format
+
+## Installation
+
+No installation required other than Nextflow and Conda. The pipeline will automatically create the necessary environment with all dependencies.
+
+```bash
+# If you don't have mamba installed (recommended for faster conda installations)
+conda install -c conda-forge mamba
+
+# Clone the repository
+git clone https://github.com/yourusername/nf-denovo-transcriptome.git
+cd nf-denovo-transcriptome
+```
 
 ## Usage
 
