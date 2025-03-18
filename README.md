@@ -28,7 +28,7 @@ No installation required other than Nextflow and Conda. The pipeline will automa
 conda install -c conda-forge mamba
 
 # Clone the repository
-git clone https://github.com/yourusername/nf-denovo-transcriptome.git
+git clone https://github.com/jakeelamb/nf-denovo-transcriptome.git
 cd nf-denovo-transcriptome
 ```
 
