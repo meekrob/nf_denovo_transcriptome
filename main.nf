@@ -1,15 +1,16 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-// Parameters
-params {
-    input = "samples.txt"           // Input file with sample_id, R1, R2 paths
-    outdir = "./results"            // Output directory
-    publish_dir_mode = "copy"       // Copy outputs to outdir
-    kmer_size = 25                  // For normalization
-    target_depth = 100              // Normalization target
-    assembler = "rnaspades"         // Options: "rnaspades" or "trinity"
-}
+// Parameters are defined in nextflow.config
+// This section should be removed from main.nf
+// params {
+//     input = "samples.txt"
+//     outdir = "./results"
+//     publish_dir_mode = "copy"
+//     kmer_size = 25
+//     target_depth = 100
+//     assembler = "rnaspades"
+// }
 
 // Include modules
 include { FASTP } from './modules/local/fastp'
@@ -25,9 +26,16 @@ Channel
     .fromPath(params.input, checkIfExists: true)
     .splitText()
     .map { line ->
-        def (sample_id, r1, r2) = line.trim().split(/\s+/)
-        [sample_id, [file(r1, checkIfExists: true), file(r2, checkIfExists: true)]]
+        if (line.trim().startsWith('#')) return  // Skip comment lines
+        def fields = line.trim().split(/\s+/)
+        if (fields.size() >= 3) {
+            def sample_id = fields[0]
+            def r1 = file(fields[1], checkIfExists: true)
+            def r2 = file(fields[2], checkIfExists: true)
+            return [sample_id, [r1, r2]]
+        }
     }
+    .filter { it != null }  // Filter out skipped lines
     .set { read_pairs }
 
 // Workflow
