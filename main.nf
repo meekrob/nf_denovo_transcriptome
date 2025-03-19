@@ -10,6 +10,8 @@ nextflow.enable.dsl=2
 //     kmer_size = 25
 //     target_depth = 100
 //     assembler = "rnaspades"
+//     skip_to_merge = false
+//     repaired_reads_dir = "${params.outdir}/repair"
 // }
 
 // Include modules
@@ -67,19 +69,37 @@ Channel
 // Workflow
 workflow {
     // Log the number of samples that will be processed
-    read_pairs.count().subscribe { count ->
-        log.info "Processing ${count} samples"
+    if (!params.skip_to_merge) {
+        read_pairs.count().subscribe { count ->
+            log.info "Processing ${count} samples"
+        }
+        
+        // Trimming
+        FASTP(read_pairs)
+    
+        // Parallel repair on each trimmed pair
+        REPAIR(FASTP.out.trimmed_reads)
+        
+        // Extract just file paths
+        REPAIR.out.repaired_reads
+            .map { sample_id, reads -> reads }
+            .collect()
+            .set { all_repaired_reads }
+    }
+    else {
+        // If skipping to merge, collect already repaired files
+        Channel
+            .fromPath("${params.repaired_reads_dir}/*_repaired_R{1,2}.fastq.gz")
+            .map { file -> file }
+            .collect()
+            .set { all_repaired_reads }
+        
+        log.info "Skipping trimming and repair. Using existing files in ${params.repaired_reads_dir}"
     }
     
-    // Trimming
-    FASTP(read_pairs)
-
-    // Parallel repair on each trimmed pair
-    REPAIR(FASTP.out.trimmed_reads)
-
     // Merge repaired reads
-    MERGE_READS(REPAIR.out.repaired_reads.collect())
-
+    MERGE_READS(all_repaired_reads)
+    
     // Normalize merged reads
     BBNORM(MERGE_READS.out.merged_reads)
 
