@@ -16,8 +16,9 @@ nextflow.enable.dsl=2
 
 // Include modules
 include { FASTP } from './modules/local/fastp'
+include { MERGE_R1 } from './modules/local/merge_r1'
+include { MERGE_R2 } from './modules/local/merge_r2'
 include { REPAIR } from './modules/local/repair'
-include { MERGE_READS } from './modules/local/merge_reads'
 include { BBNORM } from './modules/local/bbnorm'
 include { RNASPADES } from './modules/local/rnaspades'
 include { TRINITY } from './modules/local/trinity'
@@ -68,7 +69,7 @@ Channel
 
 // Workflow
 workflow {
-    // Log the number of samples that will be processed
+    // Skip to merge if specified
     if (!params.skip_to_merge) {
         read_pairs.count().subscribe { count ->
             log.info "Processing ${count} samples"
@@ -76,32 +77,44 @@ workflow {
         
         // Trimming
         FASTP(read_pairs)
-    
-        // Parallel repair on each trimmed pair
-        REPAIR(FASTP.out.trimmed_reads)
         
-        // Extract just file paths
-        REPAIR.out.repaired_reads
-            .map { sample_id, reads -> reads }
+        // Extract and collect all R1 files
+        FASTP.out.trimmed_reads
+            .map { sample_id, reads -> reads[0] }  // Get R1 files
             .collect()
-            .set { all_repaired_reads }
+            .set { all_r1_files }
+            
+        // Extract and collect all R2 files
+        FASTP.out.trimmed_reads
+            .map { sample_id, reads -> reads[1] }  // Get R2 files
+            .collect()
+            .set { all_r2_files }
+        
+        // Merge R1 and R2 files in parallel
+        MERGE_R1(all_r1_files)
+        MERGE_R2(all_r2_files)
+        
+        // Repair the merged files
+        REPAIR(MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2)
+        
+        // Set the repaired reads for normalization
+        repaired_reads_ch = REPAIR.out.repaired_reads
     }
     else {
-        // If skipping to merge, collect already repaired files
+        // If skipping to merged/repaired files
         Channel
-            .fromPath("${params.repaired_reads_dir}/*_repaired_R{1,2}.fastq.gz")
-            .map { file -> file }
+            .fromPath([
+                "${params.outdir}/repair/repaired_R1.fastq.gz", 
+                "${params.outdir}/repair/repaired_R2.fastq.gz"
+            ])
             .collect()
-            .set { all_repaired_reads }
-        
-        log.info "Skipping trimming and repair. Using existing files in ${params.repaired_reads_dir}"
+            .set { repaired_reads_ch }
+            
+        log.info "Skipping trimming, merging, and repair. Using existing files in ${params.outdir}/repair"
     }
     
-    // Merge repaired reads
-    MERGE_READS(all_repaired_reads)
-    
     // Normalize merged reads
-    BBNORM(MERGE_READS.out.merged_reads)
+    BBNORM(repaired_reads_ch)
 
     // Assembly (conditional based on params.assembler)
     if (params.assembler == "rnaspades") {
