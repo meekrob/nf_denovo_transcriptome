@@ -16,6 +16,7 @@ nextflow.enable.dsl=2
 
 // Include modules
 include { FASTP } from './modules/local/fastp'
+include { SEQKIT_QC } from './modules/local/seqkit_qc'
 include { MERGE_R1 } from './modules/local/merge_r1'
 include { MERGE_R2 } from './modules/local/merge_r2'
 include { REPAIR } from './modules/local/repair'
@@ -78,14 +79,17 @@ workflow {
         // Trimming
         FASTP(read_pairs)
         
+        // Clean and ensure proper pairing
+        SEQKIT_QC(FASTP.out.trimmed_reads)
+        
         // Extract and collect all R1 files
-        FASTP.out.trimmed_reads
+        SEQKIT_QC.out.cleaned_reads
             .map { sample_id, reads -> reads[0] }  // Get R1 files
             .collect()
             .set { all_r1_files }
             
         // Extract and collect all R2 files
-        FASTP.out.trimmed_reads
+        SEQKIT_QC.out.cleaned_reads
             .map { sample_id, reads -> reads[1] }  // Get R2 files
             .collect()
             .set { all_r2_files }
