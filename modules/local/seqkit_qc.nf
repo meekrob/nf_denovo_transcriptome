@@ -1,8 +1,8 @@
 process SEQKIT_QC {
     tag "$sample_id"
     publishDir "${params.outdir}/seqkit_qc", mode: params.publish_dir_mode
-    cpus 64
-    memory '128 GB'
+    cpus 4
+    memory '16 GB'
     time '24h'
 
     input:
