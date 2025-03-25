@@ -465,6 +465,7 @@ dependencies:
   - samtools=1.21=h96c455f_1
   - sed=4.8=he412f7d_0
   - sepp=4.4.0=py39_0
+  - seqkit=2.10.0=h9ee0642_0
   - seqtk=1.4=h577a1d6_3
   - setuptools=75.8.2=pyhff2d567_0
   - six=1.17.0=pyhd8ed1ab_0

@@ -25,6 +25,7 @@ process FASTP {
         --dedup \\
         -w ${task.cpus} \\
         -q 20 \\
-        --compression 6
+        --compression 6 \\
+	--correction
     """
 } 
