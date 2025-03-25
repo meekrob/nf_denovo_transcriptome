@@ -19,7 +19,15 @@ process SEQKIT_QC {
     # Run seqkit sana on R2
     seqkit sana -j ${task.cpus} ${reads[1]} -o ${sample_id}_sana_R2.fastq.gz
 
-    # Run seqkit pair on sana outputs
-    seqkit pair -j ${task.cpus} ${sample_id}_sana_R1.fastq.gz ${sample_id}_sana_R2.fastq.gz -1 ${sample_id}_clean_R1.fastq.gz -2 ${sample_id}_clean_R2.fastq.gz
+    # Create temporary output directory for paired reads
+    mkdir -p paired_output
+
+    # Run seqkit pair on sana outputs - using -O for output directory
+    seqkit pair -j ${task.cpus} -1 ${sample_id}_sana_R1.fastq.gz -2 ${sample_id}_sana_R2.fastq.gz \
+        -O paired_output -u
+
+    # Rename the outputs to our desired filenames
+    mv paired_output/${sample_id}_sana_R1.fastq.gz ${sample_id}_clean_R1.fastq.gz
+    mv paired_output/${sample_id}_sana_R2.fastq.gz ${sample_id}_clean_R2.fastq.gz
     """
 } 
