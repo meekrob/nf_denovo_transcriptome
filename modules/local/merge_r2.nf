@@ -1,8 +1,8 @@
 process MERGE_R2 {
     publishDir "${params.outdir}/merging", mode: params.publish_dir_mode
-    cpus 8
-    memory '64 GB'
-    time '24h'
+    cpus 2
+    memory '8 GB'
+    time '12h'
 
     input:
     path cleaned_reads_r2
@@ -12,8 +12,7 @@ process MERGE_R2 {
 
     script:
     """
-    # Merge R2 files
-    cat ${cleaned_reads_r2} > temp_R2.fastq.gz
-    pigz -p ${task.cpus} -dc temp_R2.fastq.gz | pigz -p ${task.cpus} > merged_R2.fastq.gz
+    # Simple cat merge with compression
+    cat ${cleaned_reads_r2} > merged_R2.fastq.gz
     """
 } 
