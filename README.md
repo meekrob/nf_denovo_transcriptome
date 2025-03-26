@@ -7,7 +7,7 @@ A Nextflow pipeline for de novo eukaryotic transcriptome assembly.
 This pipeline processes paired-end RNA-seq data through multiple steps to generate a high-quality transcriptome assembly:
 
 1. **Trimming**: Removes adapters and low-quality sequences using fastp
-2. **Repair**: Ensures paired reads are synchronized with BBMap's repair.sh
+2. **Quality Control**: Ensures proper read pairing and quality using seqkit
 3. **Merging**: Combines reads from multiple samples into a single dataset
 4. **Normalization**: Reduces redundancy via digital normalization with BBNorm
 5. **Assembly**: Assembles transcripts using either rnaSPAdes or Trinity
