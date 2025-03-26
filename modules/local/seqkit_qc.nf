@@ -13,21 +13,29 @@ process SEQKIT_QC {
 
     script:
     """
+    # Create temporary directory for processing
+    mkdir -p temp_${sample_id}
+    cd temp_${sample_id}
+
     # Run seqkit sana on R1
     seqkit sana -j ${task.cpus} ${reads[0]} -o ${sample_id}_sana_R1.fastq.gz
 
     # Run seqkit sana on R2
     seqkit sana -j ${task.cpus} ${reads[1]} -o ${sample_id}_sana_R2.fastq.gz
 
-    # Create temporary output directory for paired reads
+    # Create output directory for paired reads
     mkdir -p paired_output
 
-    # Run seqkit pair on sana outputs - using -O for output directory
+    # Run seqkit pair on sana outputs
     seqkit pair -j ${task.cpus} -1 ${sample_id}_sana_R1.fastq.gz -2 ${sample_id}_sana_R2.fastq.gz \
         -O paired_output -u
 
-    # Rename the outputs to our desired filenames
-    mv paired_output/${sample_id}_sana_R1.fastq.gz ${sample_id}_clean_R1.fastq.gz
-    mv paired_output/${sample_id}_sana_R2.fastq.gz ${sample_id}_clean_R2.fastq.gz
+    # Move the outputs to the work directory
+    mv paired_output/${sample_id}_sana_R1.fastq.gz ../${sample_id}_clean_R1.fastq.gz
+    mv paired_output/${sample_id}_sana_R2.fastq.gz ../${sample_id}_clean_R2.fastq.gz
+
+    # Clean up
+    cd ..
+    rm -rf temp_${sample_id}
     """
 } 
