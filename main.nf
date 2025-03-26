@@ -19,7 +19,6 @@ include { FASTP } from './modules/local/fastp'
 include { SEQKIT_QC } from './modules/local/seqkit_qc'
 include { MERGE_R1 } from './modules/local/merge_r1'
 include { MERGE_R2 } from './modules/local/merge_r2'
-include { REPAIR } from './modules/local/repair'
 include { BBNORM } from './modules/local/bbnorm'
 include { RNASPADES } from './modules/local/rnaspades'
 include { TRINITY } from './modules/local/trinity'
@@ -98,27 +97,24 @@ workflow {
         MERGE_R1(all_r1_files)
         MERGE_R2(all_r2_files)
         
-        // Repair the merged files
-        REPAIR(MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2)
-        
-        // Set the repaired reads for normalization
-        repaired_reads_ch = REPAIR.out.repaired_reads
+        // Set the merged reads for normalization
+        merged_reads_ch = tuple(MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2)
     }
     else {
-        // If skipping to merged/repaired files
+        // If skipping to merged files
         Channel
             .fromPath([
-                "${params.outdir}/repair/repaired_R1.fastq.gz", 
-                "${params.outdir}/repair/repaired_R2.fastq.gz"
+                "${params.outdir}/merging/merged_R1.fastq.gz", 
+                "${params.outdir}/merging/merged_R2.fastq.gz"
             ])
             .collect()
-            .set { repaired_reads_ch }
+            .set { merged_reads_ch }
             
-        log.info "Skipping trimming, merging, and repair. Using existing files in ${params.outdir}/repair"
+        log.info "Skipping trimming and merging. Using existing files in ${params.outdir}/merging"
     }
     
     // Normalize merged reads
-    BBNORM(repaired_reads_ch)
+    BBNORM(merged_reads_ch)
 
     // Assembly (conditional based on params.assembler)
     if (params.assembler == "rnaspades") {
