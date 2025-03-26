@@ -97,8 +97,11 @@ workflow {
         MERGE_R1(all_r1_files)
         MERGE_R2(all_r2_files)
         
-        // Set the merged reads for normalization
-        merged_reads_ch = tuple(MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2)
+        // Create tuple for BBNORM input
+        Channel
+            .fromTuple([MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2])
+            .collect()
+            .set { merged_reads_ch }
     }
     else {
         // If skipping to merged files
