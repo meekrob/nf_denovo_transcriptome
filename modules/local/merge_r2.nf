@@ -5,7 +5,7 @@ process MERGE_R2 {
     time '24h'
 
     input:
-    path trimmed_reads_r2
+    path cleaned_reads_r2
 
     output:
     path "merged_R2.fastq.gz", emit: merged_r2
@@ -13,7 +13,7 @@ process MERGE_R2 {
     script:
     """
     # Merge R2 files
-    cat ${trimmed_reads_r2} > temp_R2.fastq.gz
+    cat ${cleaned_reads_r2} > temp_R2.fastq.gz
     pigz -p ${task.cpus} -dc temp_R2.fastq.gz | pigz -p ${task.cpus} > merged_R2.fastq.gz
     """
 } 
