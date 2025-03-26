@@ -98,10 +98,7 @@ workflow {
         MERGE_R2(all_r2_files)
         
         // Create tuple for BBNORM input
-        Channel
-            .fromTuple([MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2])
-            .collect()
-            .set { merged_reads_ch }
+        merged_reads_ch = tuple(MERGE_R1.out.merged_r1, MERGE_R2.out.merged_r2)
     }
     else {
         // If skipping to merged files
