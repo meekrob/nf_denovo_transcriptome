@@ -1,6 +1,6 @@
 # nf-denovo-transcriptome
 
-A Nextflow pipeline for de novo eukaryotic transcriptome assembly.
+A Nextflow pipeline for de novo eukaryotic transcriptome assembly. 
 
 ## Overview
 
