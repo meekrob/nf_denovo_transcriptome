@@ -23,7 +23,7 @@ process BUSCO {
     busco \\
         -i ${assembly}/transcripts.fasta \\
         -o busco_output \\
-        -l eukaryota_odb10 \\
+        -l diptera_odb10 \\
         -m transcriptome \\
         -c ${task.cpus} \\
         --out_path .
