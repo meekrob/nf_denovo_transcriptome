@@ -32,6 +32,10 @@ def count_paired_files(directory, extension=".fastq.gz"):
 def get_total_size(directory, extension=".fastq.gz"):
     return sum([os.path.getsize(os.path.join(directory, f)) for f in os.listdir(directory) if f.endswith(extension)])
 
+# Helper function to add row to dataframe (replaced append with concat)
+def add_to_df(df, row_dict):
+    return pd.concat([df, pd.DataFrame([row_dict])], ignore_index=True)
+
 # Process each dataset
 print("Starting to process datasets...")
 for directory in dir_list:
@@ -65,12 +69,12 @@ for directory in dir_list:
             if fastq_files:
                 raw_files = len(fastq_files) / 2
                 raw_size = bytes_to_gb(get_total_size(results_path))
-                file_stats_df = file_stats_df.append({
+                file_stats_df = add_to_df(file_stats_df, {
                     'Dataset': dir_short,
                     'Stage': 'Raw',
                     'Files': int(raw_files),
                     'Size (GB)': raw_size
-                }, ignore_index=True)
+                })
                 print(f"Found {int(raw_files)} raw files with total size {raw_size} GB")
             else:
                 print(f"No .fastq.gz files found in {results_path}")
@@ -86,12 +90,12 @@ for directory in dir_list:
             if qc_files:
                 qc_count = len(qc_files) / 2
                 qc_size = bytes_to_gb(get_total_size(seqkit_qc_path))
-                file_stats_df = file_stats_df.append({
+                file_stats_df = add_to_df(file_stats_df, {
                     'Dataset': dir_short,
                     'Stage': 'QC',
                     'Files': int(qc_count),
                     'Size (GB)': qc_size
-                }, ignore_index=True)
+                })
                 print(f"Found {int(qc_count)} QC files with total size {qc_size} GB")
             else:
                 print(f"No .fastq.gz files found in {seqkit_qc_path}")
@@ -103,20 +107,22 @@ for directory in dir_list:
     # Collect file statistics for merged files
     try:
         if os.path.exists(merging_path):
-            merged_files = []
+            merged_files_rows = []
             merge_count = 0
             for f in os.listdir(merging_path):
                 if f.endswith(".fastq.gz"):
                     merge_count += 1
                     file_size = bytes_to_gb(os.path.getsize(os.path.join(merging_path, f)))
-                    merged_files.append({
+                    merged_files_rows.append({
                         'Dataset': dir_short,
                         'Stage': 'Merged: ' + f,
                         'Files': 1,
                         'Size (GB)': file_size
                     })
-            for entry in merged_files:
-                file_stats_df = file_stats_df.append(entry, ignore_index=True)
+            
+            if merged_files_rows:
+                file_stats_df = pd.concat([file_stats_df, pd.DataFrame(merged_files_rows)], ignore_index=True)
+            
             if merge_count > 0:
                 print(f"Found {merge_count} merged files")
             else:
@@ -129,20 +135,22 @@ for directory in dir_list:
     # Collect file statistics for normalized files
     try:
         if os.path.exists(normalization_path):
-            norm_files = []
+            norm_files_rows = []
             norm_count = 0
             for f in os.listdir(normalization_path):
                 if f.endswith(".fastq.gz"):
                     norm_count += 1
                     file_size = bytes_to_gb(os.path.getsize(os.path.join(normalization_path, f)))
-                    norm_files.append({
+                    norm_files_rows.append({
                         'Dataset': dir_short,
                         'Stage': 'Normalized: ' + f,
                         'Files': 1,
                         'Size (GB)': file_size
                     })
-            for entry in norm_files:
-                file_stats_df = file_stats_df.append(entry, ignore_index=True)
+            
+            if norm_files_rows:
+                file_stats_df = pd.concat([file_stats_df, pd.DataFrame(norm_files_rows)], ignore_index=True)
+            
             if norm_count > 0:
                 print(f"Found {norm_count} normalized files")
             else:
@@ -157,12 +165,12 @@ for directory in dir_list:
         transcript_file = os.path.join(assembly_path, "transcripts.fasta")
         if os.path.exists(transcript_file):
             assembly_size = bytes_to_gb(os.path.getsize(transcript_file))
-            file_stats_df = file_stats_df.append({
+            file_stats_df = add_to_df(file_stats_df, {
                 'Dataset': dir_short,
                 'Stage': 'Assembly',
                 'Files': 1,
                 'Size (GB)': assembly_size
-            }, ignore_index=True)
+            })
             print(f"Found assembly file with size {assembly_size} GB")
         else:
             print(f"Assembly file does not exist: {transcript_file}")
@@ -182,40 +190,85 @@ for directory in dir_list:
                     if "The lineage dataset is:" in line:
                         busco_stats["lineage"] = line.split("The lineage dataset is:")[1].strip()
                     
-                    # Extract overall metrics
+                    # Extract overall metrics - improved parsing logic
                     elif line.startswith("C:") and "]" in line:
                         print(f"Found BUSCO metrics line: {line}")
-                        parts = line.split(",")
-                        complete_part = parts[0]  # C:41.4%[S:36.5%,D:4.9%]
-                        fragmented_part = parts[1]  # F:15.6%
-                        missing_part = parts[2].split(",n:")[0]  # M:43.0%
-                        total_buscos = parts[2].split("n:")[1].strip()  # 3285
-                        
-                        busco_stats["complete_pct"] = float(complete_part.split(":")[1].split("[")[0])
-                        busco_stats["single_copy_pct"] = float(complete_part.split("S:")[1].split("%")[0])
-                        busco_stats["duplicated_pct"] = float(complete_part.split("D:")[1].split("%")[0])
-                        busco_stats["fragmented_pct"] = float(fragmented_part.split(":")[1].split("%")[0])
-                        busco_stats["missing_pct"] = float(missing_part.split(":")[1].split("%")[0])
-                        busco_stats["total_buscos"] = int(total_buscos)
+                        try:
+                            # Safe parsing with better error handling
+                            complete_match = line.split("C:")[1].split("%")[0]
+                            busco_stats["complete_pct"] = float(complete_match)
+                            
+                            # Extract single copy
+                            if "S:" in line:
+                                single_match = line.split("S:")[1].split("%")[0]
+                                busco_stats["single_copy_pct"] = float(single_match)
+                            
+                            # Extract duplicated
+                            if "D:" in line:
+                                dup_match = line.split("D:")[1].split("%")[0]
+                                busco_stats["duplicated_pct"] = float(dup_match)
+                            
+                            # Extract fragmented
+                            if "F:" in line:
+                                frag_match = line.split("F:")[1].split("%")[0]
+                                busco_stats["fragmented_pct"] = float(frag_match)
+                            
+                            # Extract missing
+                            if "M:" in line:
+                                missing_match = line.split("M:")[1].split("%")[0]
+                                busco_stats["missing_pct"] = float(missing_match)
+                            
+                            # Extract total BUSCOs
+                            if "n:" in line:
+                                total_match = line.split("n:")[1].strip()
+                                busco_stats["total_buscos"] = int(total_match)
+                        except Exception as parse_error:
+                            print(f"Error parsing BUSCO metrics line: {parse_error}")
+                            print(f"Line content: {line}")
                     
-                    # Extract detailed counts
+                    # Extract detailed counts - improved parsing
                     elif "Complete BUSCOs" in line and "(" in line:
-                        busco_stats["complete"] = int(line.split()[0])
+                        try:
+                            busco_stats["complete"] = int(line.split()[0])
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing complete BUSCOs: {e} - Line: {line}")
+                            
                     elif "Complete and single-copy BUSCOs" in line:
-                        busco_stats["single_copy"] = int(line.split()[0])
+                        try:
+                            busco_stats["single_copy"] = int(line.split()[0]) 
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing single-copy BUSCOs: {e} - Line: {line}")
+                            
                     elif "Complete and duplicated BUSCOs" in line:
-                        busco_stats["duplicated"] = int(line.split()[0])
+                        try:
+                            busco_stats["duplicated"] = int(line.split()[0])
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing duplicated BUSCOs: {e} - Line: {line}")
+                            
                     elif "Fragmented BUSCOs" in line:
-                        busco_stats["fragmented"] = int(line.split()[0])
+                        try:
+                            busco_stats["fragmented"] = int(line.split()[0])
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing fragmented BUSCOs: {e} - Line: {line}")
+                            
                     elif "Missing BUSCOs" in line:
-                        busco_stats["missing"] = int(line.split()[0])
+                        try:
+                            busco_stats["missing"] = int(line.split()[0])
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing missing BUSCOs: {e} - Line: {line}")
+                            
                     elif "Total BUSCO groups searched" in line:
-                        busco_stats["total"] = int(line.split()[0])
+                        try:
+                            busco_stats["total"] = int(line.split()[0])
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing total BUSCOs: {e} - Line: {line}")
 
             # Add BUSCO summary to DataFrames
             if busco_stats:
                 print(f"Successfully parsed BUSCO stats: {busco_stats}")
-                busco_summary_df = busco_summary_df.append({
+                
+                # Add to summary DataFrame
+                busco_summary_df = add_to_df(busco_summary_df, {
                     'Dataset': dir_short,
                     'Complete%': busco_stats.get("complete_pct", "N/A"),
                     'Single Copy%': busco_stats.get("single_copy_pct", "N/A"),
@@ -223,9 +276,10 @@ for directory in dir_list:
                     'Fragmented%': busco_stats.get("fragmented_pct", "N/A"),
                     'Missing%': busco_stats.get("missing_pct", "N/A"),
                     'Total BUSCOs': busco_stats.get("total_buscos", "N/A")
-                }, ignore_index=True)
+                })
                 
-                busco_details_df = busco_details_df.append({
+                # Add to details DataFrame
+                busco_details_df = add_to_df(busco_details_df, {
                     'Dataset': dir_short,
                     'Complete': busco_stats.get("complete", "N/A"),
                     'Single Copy': busco_stats.get("single_copy", "N/A"),
@@ -233,7 +287,7 @@ for directory in dir_list:
                     'Fragmented': busco_stats.get("fragmented", "N/A"),
                     'Missing': busco_stats.get("missing", "N/A"),
                     'Total': busco_stats.get("total", "N/A")
-                }, ignore_index=True)
+                })
             else:
                 print("No BUSCO stats were extracted from the file")
         else:
@@ -317,14 +371,18 @@ try:
         # File size comparison
         plt.figure(figsize=(12, 8))
         size_data = file_stats_df.pivot(index='Dataset', columns='Stage', values='Size (GB)')
-        size_data = size_data.loc[:, ~size_data.columns.str.contains('Merged|Normalized')]
-        size_data.plot(kind='bar')
-        plt.title('File Size Comparison by Processing Stage')
-        plt.ylabel('Size (GB)')
-        plt.tight_layout()
-        size_plot_file = 'file_size_comparison.png'
-        plt.savefig(size_plot_file)
-        print(f"File size comparison plot saved to {os.path.abspath(size_plot_file)}")
+        # Filter only basic stages (not individual merged/normalized files)
+        if size_data is not None and not size_data.empty:
+            size_data = size_data.loc[:, ~size_data.columns.str.contains('Merged|Normalized')]
+            size_data.plot(kind='bar')
+            plt.title('File Size Comparison by Processing Stage')
+            plt.ylabel('Size (GB)')
+            plt.tight_layout()
+            size_plot_file = 'file_size_comparison.png'
+            plt.savefig(size_plot_file)
+            print(f"File size comparison plot saved to {os.path.abspath(size_plot_file)}")
+        else:
+            print("Not enough data for file size comparison plot")
 except Exception as e:
     print(f"Error generating plots: {e}")
 
