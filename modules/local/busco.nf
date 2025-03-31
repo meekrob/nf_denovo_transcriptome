@@ -1,6 +1,6 @@
 process BUSCO {
     publishDir "${params.outdir}/busco", mode: params.publish_dir_mode
-    cpus 8
+    cpus 16
     memory '32 GB'
     time '2h'
 

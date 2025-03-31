@@ -12,6 +12,7 @@ dir_list = [
     "02_CxTarMidgutSingleCellReads",
     "03_CxTarOvarySingleCellReads",
     "04_emily_ebel_bulk_midgut_data_eg_RNAseq",
+    "CxT_combined_run"
 ]
 
 # Initialize DataFrames to store results
