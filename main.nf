@@ -119,14 +119,29 @@ workflow {
     }
     
     // Normalize merged reads
-    BBNORM(merged_reads_ch)
+    if (!params.skip_to_assembly) {
+        BBNORM(merged_reads_ch)
+        normalized_reads_ch = BBNORM.out.normalized_reads
+    } else {
+        // If skipping to assembly, use existing normalized files
+        Channel
+            .fromPath([
+                "${params.outdir}/normalization/normalized_R1.fastq.gz", 
+                "${params.outdir}/normalization/normalized_R2.fastq.gz"
+            ])
+            .collect()
+            .map { files -> [files[0], files[1]] }
+            .set { normalized_reads_ch }
+            
+        log.info "Skipping normalization. Using existing files in ${params.outdir}/normalization"
+    }
 
     // Assembly (conditional based on params.assembler)
     if (params.assembler == "rnaspades") {
-        RNASPADES(BBNORM.out.normalized_reads)
+        RNASPADES(normalized_reads_ch)
         assembly_ch = RNASPADES.out.assembly
     } else if (params.assembler == "trinity") {
-        TRINITY(BBNORM.out.normalized_reads)
+        TRINITY(normalized_reads_ch)
         assembly_ch = TRINITY.out.assembly
     } else {
         error "Invalid assembler specified: ${params.assembler}. Use 'rnaspades' or 'trinity'."
