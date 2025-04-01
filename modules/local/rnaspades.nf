@@ -1,7 +1,7 @@
 process RNASPADES {
     publishDir "${params.outdir}/assembly/rnaspades", mode: params.publish_dir_mode
     cpus 64
-    memory '250 GB'
+    memory '500 GB'
     time '168h'
 
     input:
