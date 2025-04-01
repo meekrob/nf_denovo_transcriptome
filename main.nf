@@ -70,7 +70,7 @@ Channel
 // Workflow
 workflow {
     // Skip to merge if specified
-    if (!params.skip_to_merge) {
+    if (!params.skip_to_assembly && !params.skip_to_merge) {
         read_pairs.count().subscribe { count ->
             log.info "Processing ${count} samples"
         }
@@ -103,8 +103,12 @@ workflow {
         
         // Combine channels into a tuple
         r1_ch.combine(r2_ch).map { r1, r2 -> [r1, r2] }.set { merged_reads_ch }
+        
+        // Normalize merged reads
+        BBNORM(merged_reads_ch)
+        normalized_reads_ch = BBNORM.out.normalized_reads
     }
-    else {
+    else if (params.skip_to_merge && !params.skip_to_assembly) {
         // If skipping to merged files
         Channel
             .fromPath([
@@ -116,13 +120,12 @@ workflow {
             .set { merged_reads_ch }
             
         log.info "Skipping trimming and merging. Using existing files in ${params.outdir}/merging"
-    }
-    
-    // Normalize merged reads
-    if (!params.skip_to_assembly) {
+        
+        // Normalize merged reads
         BBNORM(merged_reads_ch)
         normalized_reads_ch = BBNORM.out.normalized_reads
-    } else {
+    }
+    else {
         // If skipping to assembly, use existing normalized files
         Channel
             .fromPath([
@@ -133,7 +136,7 @@ workflow {
             .map { files -> [files[0], files[1]] }
             .set { normalized_reads_ch }
             
-        log.info "Skipping normalization. Using existing files in ${params.outdir}/normalization"
+        log.info "Skipping all preprocessing steps. Using existing files in ${params.outdir}/normalization"
     }
 
     // Assembly (conditional based on params.assembler)
