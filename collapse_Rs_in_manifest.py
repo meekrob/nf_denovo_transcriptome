@@ -25,12 +25,24 @@ def read_R1_R2(fh):
     R2 = lines.pop()
     yield root, R1,R2
 
+def regularize_path(r_pth):
+    basepath = "/nfs/home/rsbg/01_fastq"
+    fullpath = os.path.join(basepath, r_pth)
+    if not os.path.exists(fullpath):
+        print(f"{basepath=}", file=sys.stderr)
+        print(f"{r_pth=}", file=sys.stderr)
+        print(f"{fullpath=}", file=sys.stderr)
+        print(f"{os.path.exists(fullpath)=}", file=sys.stderr)
+        raise FileNotFoundError
+
+    return os.path.normpath(fullpath)
 
 
 def main():
 
     for root,R1,R2 in read_R1_R2(sys.stdin):
-        print(f"{root}: {os.path.basename(R1)}, {os.path.basename(R2)}")
+        print(root, regularize_path(R1), regularize_path(R2), sep="\t")
+        
         
 
 if __name__ == "__main__": main()
