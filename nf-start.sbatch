@@ -4,7 +4,7 @@
 #SBATCH --time=7-00:00:00
 #SBATCH --job-name=nf-start
 #SBATCH --partition=week-long-cpu
-#SBATCH --output=%x.%j.log # gives jobname.ID.log
+#SBATCH --output=slurmlogs/%x.%j.log # gives jobname.ID.log
 # Available partitions
 # day-long-cpu
 # day-long-gpu
